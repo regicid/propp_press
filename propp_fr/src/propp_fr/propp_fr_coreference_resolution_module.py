@@ -38,6 +38,14 @@ import requests
 from propp_fr import load_tokenizer_and_embedding_model, get_embedding_tensor_from_tokens_df
 from propp_fr import load_tokens_df, load_entities_df, load_text_file
 
+import io
+
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu', weights_only=False)
+        return super().find_class(module, name)
+
 def get_tokens_embeddings_tensor_dict(tokens_embeddings_tensor_dict_path, model_name, files_directory,
                                       embedding_batch_size=10, subword_pooling_strategy="average",
                                       verbose=1):
@@ -954,7 +962,7 @@ def get_predictions(model, model_data_dict, batch_size=10000, verbose=1):
     data_loader = DataLoader(dataset,
                              batch_size=batch_size,
                              shuffle=False,
-                             num_workers=1,
+                             num_workers=0, #Crucial optimization, x10 speedup for small docs
                              pin_memory=torch.cuda.is_available()  # Optimize data transfer for GPU
                              )
 
@@ -2009,7 +2017,8 @@ def load_coreference_resolution_model(
         try:
             response = requests.get(url_model_path)
             response.raise_for_status()  # Raise an exception for HTTP errors
-            coreference_resolution_model = pickle.loads(response.content)  # Deserialize the downloaded model
+            #coreference_resolution_model = pickle.loads(response.content)  # Deserialize the downloaded model
+            coreference_resolution_model = CPU_Unpickler(io.BytesIO(response.content)).load()
             print("Model Downloaded Successfully")
 
             # Save the model locally for future use

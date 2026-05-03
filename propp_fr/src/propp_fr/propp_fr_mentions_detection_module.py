@@ -22,6 +22,15 @@ from .propp_fr_load_save_functions import load_tokens_df, load_entities_df, load
 from .propp_fr_generate_tokens_embeddings_tensor import load_tokenizer_and_embedding_model, get_embedding_tensor_from_tokens_df
 
 
+import io
+
+class CPU_Unpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == 'torch.storage' and name == '_load_from_bytes':
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu', weights_only=False)
+        return super().find_class(module, name)
+
+
 #%%
 def get_NER_training_dictionary(files_directory,
                                 NER_training_dictionary_path,
@@ -1707,7 +1716,8 @@ def load_mentions_detection_model(model_path="AntoineBourgois/propp-fr_NER_camem
         try:
             response = requests.get(url_model_path)
             response.raise_for_status()  # Raise an exception for HTTP errors
-            mentions_detection_model = pickle.loads(response.content)  # Deserialize the downloaded model
+            #mentions_detection_model = pickle.loads(response.content)  # Deserialize the downloaded model
+            mentions_detection_model = CPU_Unpickler(io.BytesIO(response.content)).load()
             print("Model Downloaded Successfully")
 
             # Save the model locally for future use
