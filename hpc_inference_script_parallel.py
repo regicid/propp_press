@@ -21,7 +21,7 @@ from propp_fr import (
 # Global context for each worker process
 worker_ctx = None
 
-def _move_modules(obj, device, seen=None):
+def _move_modules(obj, device, dtype=None, seen=None):
     if seen is None:
         seen = set()
     if id(obj) in seen:
@@ -29,19 +29,22 @@ def _move_modules(obj, device, seen=None):
     seen.add(id(obj))
 
     if isinstance(obj, nn.Module):
-        obj.to(device).eval()
+        if dtype:
+            obj.to(device=device, dtype=dtype).eval()
+        else:
+            obj.to(device).eval()
         return
 
     if isinstance(obj, dict):
         for v in obj.values():
-            _move_modules(v, device, seen)
+            _move_modules(v, device, dtype, seen)
     elif isinstance(obj, (list, tuple)):
         for v in obj:
-            _move_modules(v, device, seen)
+            _move_modules(v, device, dtype, seen)
     elif hasattr(obj, '__dict__'):
         for k, v in vars(obj).items():
             if not k.startswith('_'):
-                _move_modules(v, device, seen)
+                _move_modules(v, device, dtype, seen)
 
 def setup(device='cuda'):
     assert torch.cuda.is_available(), "CUDA not available"
@@ -55,9 +58,11 @@ def setup(device='cuda'):
         mentions_detection_model['base_model_name']
     )
 
-    embedding_model = embedding_model.to(device).eval()
-    _move_modules(mentions_detection_model, device)
-    _move_modules(coreference_resolution_model, device)
+    dtype = torch.bfloat16
+
+    embedding_model = embedding_model.to(device=device, dtype=dtype).eval()
+    _move_modules(mentions_detection_model, device, dtype)
+    _move_modules(coreference_resolution_model, device, dtype)
 
     return {
         'spacy_model': spacy_model,
@@ -85,7 +90,7 @@ def process_one_task(args):
             max_char_sentence_length=500000 
         )
         
-        with torch.inference_mode():
+        with torch.inference_mode(), torch.autocast(device_type='cuda', dtype=torch.bfloat16):
             # 2. Pass the embedding mini batch
             tokens_embedding_tensor = get_embedding_tensor_from_tokens_df(
                 text_content, 
