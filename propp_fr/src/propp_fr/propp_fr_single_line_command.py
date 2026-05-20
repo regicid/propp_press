@@ -217,26 +217,6 @@ def process_text_file(txt_file_path):
             print(f"{file_name}.book already exists. Skipping...")
 
         else:
-            process_file(file_name,
-                         input_folder,
-                         output_folder,
-                         spacy_model,
-                         mentions_detection_model,
-                         coreference_resolution_model,
-                         tokenizer, embedding_model,
-                         verbose=1,
-                         spacy_max_characters_batch=50000,
-                         embedding_mini_batch=10,
-                         mentions_detection_batch=12,
-                         coreference_resolution_batch=50000,
-
-                         # spacy_max_characters_batch=1000000,
-                         # embedding_mini_batch=64,
-                         # mentions_detection_batch=128,
-                         # coreference_resolution_batch=50000,
-
-                         )
-
             try:
                 process_file(file_name,
                              input_folder,
@@ -246,16 +226,10 @@ def process_text_file(txt_file_path):
                              coreference_resolution_model,
                              tokenizer, embedding_model,
                              verbose=1,
-                             spacy_max_characters_batch=50000,
-                             embedding_mini_batch=10,
-                             mentions_detection_batch=12,
+                             spacy_max_characters_batch=500000,
+                             embedding_mini_batch=64,
+                             mentions_detection_batch=128,
                              coreference_resolution_batch=50000,
-
-                             # spacy_max_characters_batch=1000000,
-                             # embedding_mini_batch=64,
-                             # mentions_detection_batch=128,
-                             # coreference_resolution_batch=50000,
-
                              )
             except Exception as e:
                 print(f"⚠️ Unexpected error processing file {file_name}: {e}")

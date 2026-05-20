@@ -129,27 +129,16 @@ def get_mentions_embeddings(entities_df, tokens_embeddings_tensor):
     Returns:
         torch.Tensor: A tensor where each row is the averaged embedding of a mention.
     """
-    mentions_embeddings = []
+    if len(entities_df) == 0:
+        return torch.empty(0, device=tokens_embeddings_tensor.device)
 
-    for entity_start_token, entity_end_token in entities_df[['start_token', 'end_token']].values:
-        # Extract the first and last token embeddings
-        first_last_embeddings = [tokens_embeddings_tensor[entity_start_token],
-                                 tokens_embeddings_tensor[entity_end_token]]
+    start_tokens = entities_df['start_token'].values
+    end_tokens = entities_df['end_token'].values
 
-        # Compute the mean of the first and last embeddings
-        mention_embedding = torch.mean(torch.stack(first_last_embeddings), dim=0)
+    start_embeddings = tokens_embeddings_tensor[start_tokens]
+    end_embeddings = tokens_embeddings_tensor[end_tokens]
 
-        # Instead concatenate first and last embeddings
-        # mention_embedding = torch.cat(first_last_embeddings, dim=0)
-
-        # Append the computed embedding
-        mentions_embeddings.append(mention_embedding)
-
-    if mentions_embeddings:
-        mentions_embeddings_tensor = torch.stack(mentions_embeddings)
-    else:
-        # Return an empty tensor if no embeddings were successfully computed
-        mentions_embeddings_tensor = torch.empty(0)
+    mentions_embeddings_tensor = (start_embeddings + end_embeddings) / 2.0
 
     return mentions_embeddings_tensor
 
