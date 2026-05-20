@@ -76,6 +76,13 @@ def setup(device='cuda'):
 def init_worker():
     """Initializes the models on the GPU for each separate process."""
     global worker_ctx
+    import time
+    import random
+    
+    # Stagger worker initialization to prevent massive simultaneous VRAM allocations
+    # Each worker will sleep for a random time between 0 and 30 seconds before loading models
+    time.sleep(random.uniform(0, 30))
+    
     # Give each worker its own isolated PyTorch/CUDA environment
     worker_ctx = setup(device='cuda')
 
