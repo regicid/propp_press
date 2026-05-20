@@ -535,11 +535,24 @@ class MentionPairsDataset(Dataset):
                 - 'overall_labels_tensor': Labels for mention pairs (NumPy array).
         """
         self.mention_pairs = generator_model_data['overall_mention_pairs_df']
-        # self.per_mentions_embeddings = generator_model_data['overall_mentions_embeddings_tensor'].clone().detach().to(torch.float32)
-        self.per_mentions_embeddings = torch.tensor(generator_model_data['overall_mentions_embeddings_tensor'],
-                                                    dtype=torch.float32).clone()
-        self.features = torch.tensor(generator_model_data['overall_features_tensor'], dtype=torch.float32).clone()
-        self.labels = torch.tensor(generator_model_data['overall_labels_tensor'], dtype=torch.float32).clone()
+        
+        embeds = generator_model_data['overall_mentions_embeddings_tensor']
+        if isinstance(embeds, torch.Tensor):
+            self.per_mentions_embeddings = embeds.to(torch.float32).clone()
+        else:
+            self.per_mentions_embeddings = torch.tensor(embeds, dtype=torch.float32).clone()
+            
+        feats = generator_model_data['overall_features_tensor']
+        if isinstance(feats, torch.Tensor):
+            self.features = feats.to(torch.float32).clone()
+        else:
+            self.features = torch.tensor(np.array(feats, dtype=np.float32), dtype=torch.float32).clone()
+            
+        labels = generator_model_data['overall_labels_tensor']
+        if isinstance(labels, torch.Tensor):
+            self.labels = labels.to(torch.float32).clone()
+        else:
+            self.labels = torch.tensor(np.array(labels, dtype=np.float32), dtype=torch.float32).clone()
 
     def __len__(self):
         """
@@ -963,7 +976,7 @@ def get_predictions(model, model_data_dict, batch_size=10000, verbose=1):
         for X_batch, _ in tqdm(data_loader, desc="Predicting Coreference Pairs", leave=False, disable=(verbose != 2)):
             X_batch = X_batch.to(device)  # Move the batch to the same device as the model
             # Generate predictions and move them back to CPU for further processing
-            batch_predictions = torch.sigmoid(model(X_batch)).cpu().numpy()
+            batch_predictions = torch.sigmoid(model(X_batch)).cpu().to(torch.float32).numpy()
             predictions.append(batch_predictions)
 
     # Cleanup unused resources to free memory
