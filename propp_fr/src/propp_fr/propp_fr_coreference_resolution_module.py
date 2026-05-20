@@ -132,8 +132,8 @@ def get_mentions_embeddings(entities_df, tokens_embeddings_tensor):
     if len(entities_df) == 0:
         return torch.empty(0, device=tokens_embeddings_tensor.device)
 
-    start_tokens = entities_df['start_token'].values
-    end_tokens = entities_df['end_token'].values
+    start_tokens = entities_df['start_token'].to_numpy(copy=True)
+    end_tokens = entities_df['end_token'].to_numpy(copy=True)
 
     start_embeddings = tokens_embeddings_tensor[start_tokens]
     end_embeddings = tokens_embeddings_tensor[end_tokens]
