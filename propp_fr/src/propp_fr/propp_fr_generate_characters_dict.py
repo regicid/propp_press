@@ -1,5 +1,5 @@
 from collections import Counter
-
+import pandas as pd
 def gender_inference(gender_list):
     mention_count = len(gender_list)
     gender_count = Counter(gender_list)
