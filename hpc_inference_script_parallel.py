@@ -14,8 +14,9 @@ from propp_fr import (
     generate_tokens_df, get_embedding_tensor_from_tokens_df,
     generate_entities_df, add_features_to_entities, perform_coreference,
     extract_attributes, generate_characters_dict,
-    save_entities_df, save_book_file,
+    save_entities_df, save_book_file, save_tokens_df,
     load_tokenizer_and_embedding_model, load_models,
+    load_ontology_classification_model, classify_attributes,
 )
 
 # Global context for each worker process
@@ -64,12 +65,18 @@ def setup(device='cuda'):
     _move_modules(mentions_detection_model, device, dtype)
     _move_modules(coreference_resolution_model, device, dtype)
 
+    attribute_classification_model = load_ontology_classification_model(
+        device=torch.device(device)
+    )
+    _move_modules(attribute_classification_model, device, dtype)
+
     return {
         'spacy_model': spacy_model,
         'tokenizer': tokenizer,
         'embedding_model': embedding_model,
         'mentions_detection_model': mentions_detection_model,
         'coreference_resolution_model': coreference_resolution_model,
+        'attribute_classification_model': attribute_classification_model,
         'device': device,
     }
 
@@ -126,7 +133,17 @@ def process_one_task(args):
             )
 
         tokens_df = extract_attributes(entities_df, tokens_df)
+
+        # Attribute ontology classification (runs on the already-computed
+        # embedding tensor — no extra GPU pass needed)
+        tokens_df = classify_attributes(
+            tokens_df,
+            tokens_embedding_tensor,
+            worker_ctx['attribute_classification_model'],
+        )
+
         characters_dict = generate_characters_dict(tokens_df, entities_df)
+        save_tokens_df(tokens_df, file_name, root_directory)
         save_entities_df(entities_df, file_name, root_directory)
         save_book_file(characters_dict, file_name, root_directory)
         return (file_name, 'ok', None)
