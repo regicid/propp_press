@@ -143,7 +143,6 @@ def process_one_task(args):
             )
 
         characters_dict = generate_characters_dict(tokens_df, entities_df)
-        save_tokens_df(tokens_df, file_name, root_directory)
         save_entities_df(entities_df, file_name, root_directory)
         save_book_file(characters_dict, file_name, root_directory)
         return (file_name, 'ok', None)

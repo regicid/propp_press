@@ -78,9 +78,17 @@ def extract_char_attributs(COREF_group, tokens_df, attributes_column):
     # Use boolean indexing for filtering
     filtered_tokens_df = tokens_df[tokens_df[attributes_column].isin(COREF_group['head_id'])]
 
-    # Use itertuples for creating the list of dictionaries
-    char_attributes = [{'w': row.lemma, 'i': row.token_ID_within_document} for row in
-                       filtered_tokens_df.itertuples(index=False)]
+    # Find the ontology column if it exists
+    ontology_col = next((col for col in tokens_df.columns if col.startswith('ontology_')), None)
+
+    char_attributes = []
+    for row in filtered_tokens_df.itertuples(index=False):
+        attr = {'w': row.lemma, 'i': row.token_ID_within_document}
+        if ontology_col:
+            val = getattr(row, ontology_col)
+            if pd.notna(val):
+                attr['ontology'] = val
+        char_attributes.append(attr)
 
     return char_attributes
 
@@ -89,9 +97,10 @@ def generate_characters_dict(tokens_df,
                             COREF_column='COREF',
                             min_occurrences=2):
     tokens_df['lemma'] = tokens_df.copy()['lemma'].str.lower()
-    tokens_df = tokens_df[
-        ['token_ID_within_document', 'word', 'lemma', 'char_att_poss', 'char_att_agent', 'char_att_patient',
-         'char_att_mod']]
+    
+    cols_to_keep = ['token_ID_within_document', 'word', 'lemma', 'char_att_poss', 'char_att_agent', 'char_att_patient', 'char_att_mod']
+    ontology_cols = [c for c in tokens_df.columns if c.startswith('ontology_')]
+    tokens_df = tokens_df[cols_to_keep + ontology_cols]
 
     PER_entities_df = entities_df[entities_df['cat'] == 'PER']
     PER_entities_df = PER_entities_df.sort_values(by=[COREF_column, 'start_token'])
