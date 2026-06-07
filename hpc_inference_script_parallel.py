@@ -132,15 +132,15 @@ def process_one_task(args):
                 rule_based_postprocess=False
             )
 
-        tokens_df = extract_attributes(entities_df, tokens_df)
+            tokens_df = extract_attributes(entities_df, tokens_df)
 
-        # Attribute ontology classification (runs on the already-computed
-        # embedding tensor — no extra GPU pass needed)
-        tokens_df = classify_attributes(
-            tokens_df,
-            tokens_embedding_tensor,
-            worker_ctx['attribute_classification_model'],
-        )
+            # Attribute ontology classification (runs on the already-computed
+            # embedding tensor — no extra GPU pass needed)
+            tokens_df = classify_attributes(
+                tokens_df,
+                tokens_embedding_tensor,
+                worker_ctx['attribute_classification_model'],
+            )
 
         characters_dict = generate_characters_dict(tokens_df, entities_df)
         save_tokens_df(tokens_df, file_name, root_directory)
@@ -185,7 +185,13 @@ def process_dataframe_parallel(df, text_columns, root_directory, id_column, num_
             except StopIteration:
                 break
 
-        pbar = tqdm(desc=f'propp_fr (GPU x{num_workers} workers)')
+        already_done = sum(
+            1 for row in df.itertuples(index=False)
+            if os.path.exists(os.path.join(root_str, f'{str(getattr(row, id_column))}.book'))
+        )
+        total_todo = len(df) - already_done
+        pbar = tqdm(total=total_todo, desc=f'propp_fr (GPU x{num_workers} workers)')
+
         while pending:
             done, pending = wait(pending, return_when=FIRST_COMPLETED)
             for f in done:
@@ -202,9 +208,11 @@ def process_dataframe_parallel(df, text_columns, root_directory, id_column, num_
 if __name__ == '__main__':
     text_columns = ["text"]
 
+    root_directory = '/home/decourson/propp_press/outputs/'
+
     # Only load the columns we actually need
     df = pd.read_csv(
-        "~/medialab/lefigaro.csv",
+        "~/medialab/lemonde.csv",
         usecols=['url'] + text_columns,
         dtype=str,
     )
@@ -213,16 +221,17 @@ if __name__ == '__main__':
 
     # Drop the raw url column; we only need url_id from here on
     df = df[['url_id'] + text_columns]
+    print(f'Loaded {len(df)} articles. Already-processed files will be skipped automatically.')
 
-    # Note: 8 workers will use ~16-24GB of VRAM (3GB per process) which is easy for 48GB Ada.
-    # If OOM occurs, lower num_workers to 6 or 4.
+    # Note: 18 workers will use ~54GB of VRAM (~3GB per process) on a 48GB Ada.
+    # If OOM occurs, lower num_workers to 12 or 8.
     status_df = process_dataframe_parallel(
         df,
         text_columns=text_columns,
-        root_directory='/home/decourson/propp_gpu/outputs/',
+        root_directory=root_directory,
         id_column='url_id',
         num_workers=18
     )
 
     print(status_df['status'].value_counts())
-    status_df.to_csv('/home/decourson/propp_gpu/outputs/_status.csv', index=False)
+    status_df.to_csv(os.path.join(root_directory, '_status.csv'), index=False)
